@@ -1,0 +1,8 @@
+{
+	"version":3,
+	"file":"examples/twoliner.js",
+	"sourceRoot":"/",
+	"sources":["examples/twoliner.src.js"],
+	"names":[],
+	"mappings":"AAAA,GAAG,CAAC,CAAC,CAAC,CAAC,CAAC,6BAAM,CAAC;AACf,GAAG,CAAC,CAAC,CAAC,CAAC,CAAC,+BAAQ"
+}
