@@ -10,19 +10,25 @@
       .segment.blue { background-color:blue; }
       .segment.purple { background-color:purple; }
       .segment.other { background-color: #959622; }
+      .resulting { float:left; width: 35%; border-right: 1px solid #ADADAD; padding-right: 14px;}
+      .original-source { float:left; width: 35%; padding-left: 11px; }
+      .resulting #out { width: 95%; height: 300px; overflow: auto; } 
+      .app {padding-top: 40px;border: rgba(176, 209, 228, 0.25) solid 1px;overflow: hidden;margin: 40px -12px 0px -12px;padding: 13px 13px 0px 15px;background: rgba(183, 214, 231, 0.05);border-radius: 2px;}
     </style>
+    <link href="http://twitter.github.com/bootstrap/assets/css/bootstrap.css" rel="stylesheet">
   </head>
   <body>
-    <h1>Source map visualizer tool</h1>
-    <p>(c) <a href="http://qfox.nl">qfox.nl</a>, jan 2013</p>
-    <p>Copy a source map (v3, make sure file paths are relative, and ajax GET-able from this page) in the textarea to the right, or select an example
-      from the dropdown. Once processed (longer files take more time.., blame rendering), any map segment will show up in the compiled file. You
-      can click on a segment to have the proper file loaded (multiple files supported) and jump to the proper position in that file. First
-      character will be marked red. You can also enter a single VLQ in the segment test to see how it would be decoded (only deltas, no absolute
-      values, of course). Hope the tool helps you :) You can drop this index.html into any project to test your source maps. This tool does not
-      support the names array. It just ignores it, sorry :) You can read more about generating source maps in <a href="http://qfox.nl/weblog/281">this blog post</a>.
-      You can also find <a href="http://github.com/qfox/sourcemapper">this project on Github</a> for your forking pleasure.</p>
-
+    <section class="container">
+      <h1>Source map visualizer tool</h1>
+        <p>(c) <a href="http://qfox.nl">qfox.nl</a>, jan 2013</p>
+        <p>Copy a source map (v3, make sure file paths are relative, and ajax GET-able from this page) in the textarea to the right, or select an example
+          from the dropdown. Once processed (longer files take more time.., blame rendering), any map segment will show up in the compiled file. You
+          can click on a segment to have the proper file loaded (multiple files supported) and jump to the proper position in that file. First
+          character will be marked red. You can also enter a single VLQ in the segment test to see how it would be decoded (only deltas, no absolute
+          values, of course). Hope the tool helps you :) You can drop this index.html into any project to test your source maps. This tool does not
+          support the names array. It just ignores it, sorry :) You can read more about generating source maps in <a href="http://qfox.nl/weblog/281">this blog post</a>.
+        You can also find <a href="http://github.com/qfox/sourcemapper">this project on Github</a> for your forking pleasure.</p>
+    <section class="app">
     <div>Segment test: <input id="segment"/><span id="segout"></span></div>
     <div style="float:right; width: 25%;">
       Source map examples:
@@ -37,15 +43,16 @@
       <textarea id="map" style="width: 95%; height: 300px;">
       </textarea>
     </div>
-    <div style="float:left; width: 35%; border-right: 1px solid red; padding-right: 5px;">
-      <div style="border-bottom: 1px solid red;">Resulting source<b id="targetname"></b>:</div>
-      <pre id="out" style="width: 95%; height: 300px; overflow: auto;"></pre>
+    <div class="resulting">
+      <div style="">Resulting source<b id="targetname"></b>:</div>
+      <pre id="out"></pre>
     </div>
-    <div style="float:left; width: 35%; padding-left: 5px;">
-      <div style="border-bottom: 1px solid red;">Original source<b id="sourcename"></b>:</div>
+    <div class="original-source">
+      <div style="">Original source<b id="sourcename"></b>:</div>
       <pre id="inp" style="width: 95%; height: 300px; overflow: auto;"></pre>
     </div>
-
+    </section>
+</section>
     <script>
       var app = {
         dom: {
