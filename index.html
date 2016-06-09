@@ -1,363 +1,418 @@
 <!doctype html>
 <html>
-  <head>
-    <title>Source map visualization tool</title>
-    <style>
-      .segment { border: 1px solid red; color:white; cursor: help; }
-      .segment:hover { border-color:yellow; }
-      .segment.black { background-color:black; }
-      .segment.green { background-color:green; }
-      .segment.blue { background-color:blue; }
-      .segment.purple { background-color:purple; }
-      .segment.other { background-color: #959622; }
-      .resulting { float:left; width: 35%; border-right: 1px solid #ADADAD; padding-right: 14px;}
-      .original-source { float:left; width: 35%; padding-left: 11px; }
-      .resulting #out { width: 95%; height: 300px; overflow: auto; } 
-      .app {padding-top: 40px;border: rgba(176, 209, 228, 0.25) solid 1px;overflow: hidden;margin: 40px -12px 0px -12px;padding: 13px 13px 0px 15px;background: rgba(183, 214, 231, 0.05);border-radius: 2px;}
-    </style>
-    <link href="bootstrap.css" rel="stylesheet">
-  </head>
-  <body>
-    <section class="container">
-      <h1>Source map visualizer tool</h1>
-        <p>(c) <a href="http://qfox.nl">qfox.nl</a>, jan 2013</p>
-        <p>Copy a source map (v3, make sure file paths are relative, and ajax GET-able from this page) in the textarea to the right, or select an example
-          from the dropdown. Once processed (longer files take more time.., blame rendering), any map segment will show up in the compiled file. You
-          can click on a segment to have the proper file loaded (multiple files supported) and jump to the proper position in that file. First
-          character will be marked red. You can also enter a single VLQ in the segment test to see how it would be decoded (only deltas, no absolute
-          values, of course). Hope the tool helps you :) You can drop this index.html into any project to test your source maps. This tool does not
-          support the names array. It just ignores it, sorry :) You can read more about generating source maps in <a href="http://qfox.nl/weblog/281">this blog post</a>.
-        You can also find <a href="http://github.com/qfox/sourcemapper">this project on Github</a> for your forking pleasure.</p>
-    </section>
-    <section class="app" style="margin: 40px 10px 0px 10px;">
-    <div>Segment test: <input id="segment"/><span id="segout"></span></div>
-    <div style="float:right; width: 25%;">
+<head>
+  <title>Source map visualization tool</title>
+  <style>
+    .segment { border: 1px solid red; color:white; cursor: help; }
+    .segment:hover { border-color:yellow; }
+    .segment.black { background-color:black; }
+    .segment.green { background-color:green; }
+    .segment.pink { background-color:pink; }
+    .segment.orange { background-color:orange; }
+    .segment.blue { background-color:blue; }
+    .segment.purple { background-color:purple; }
+    .segment.other { background-color: #959622; }
+    .resulting { float:left; width: 35%; border-right: 1px solid #ADADAD; padding-right: 14px;}
+    .original-source { float:left; width: 35%; padding-left: 11px; }
+    .resulting #out { width: 95%; height: 300px; overflow: auto; }
+    .app {padding-top: 40px;border: rgba(176, 209, 228, 0.25) solid 1px;overflow: hidden;margin: 40px -12px 0px -12px;padding: 13px 13px 0px 15px;background: rgba(183, 214, 231, 0.05);border-radius: 2px;}
+  </style>
+  <link href="sourcemap-translator-bootstrap.css" rel="stylesheet">
+</head>
+<body>
+<section class="container">
+  <h1>Source map visualizer tool (BETTER PERFORMANCE ON INTERNET EXPLORER</h1>
+  <p>(c) <a href="http://qfox.nl">qfox.nl</a>, jan 2013</p>
+  <p>Copy a source map (v3, make sure file paths are relative, and ajax GET-able from this page) in the textarea to the right, or select an example
+    from the dropdown. Once processed (longer files take more time.., blame rendering), any map segment will show up in the compiled file. You
+    can click on a segment to have the proper file loaded (multiple files supported) and jump to the proper position in that file. First
+    character will be marked red. You can also enter a single VLQ in the segment test to see how it would be decoded (only deltas, no absolute
+    values, of course). Hope the tool helps you :) You can drop this index.html into any project to test your source maps. This tool does not
+    support the names array. It just ignores it, sorry :) You can read more about generating source maps in <a href="http://qfox.nl/weblog/281">this blog post</a>.
+    You can also find <a href="http://github.com/qfox/sourcemapper">this project on Github</a> for your forking pleasure.</p>
+</section>
+<section class="app" style="margin: 40px 10px 0px 10px;">
+  <div>Minified position (format : [row],[column], ex.: 1,105): <input id="position"/></div>
+  <div>Segment (name is not unique): <input id="segment" disabled/><span id="segout"></span></div>
+  <div style="float:right; width: 25%;">
       Source map examples:
       <select id="sourceselect">
         <option value="twoliner.js.map">simple twoliner</option>
         <option value="longhtml.js.map">longer html demo</option>
         <option value="sourcemapapp.js.map">source map app</option>
       </select>
-      <br/>
+    <br/>
 
-      <br/>
+    <br/>
       <textarea id="map" style="width: 95%; height: 300px;">
       </textarea>
-    </div>
-    <div class="resulting">
-      <div style="">Resulting source<b id="targetname"></b>:</div>
-      <pre id="out"></pre>
-    </div>
-    <div class="original-source">
-      <div style="">Original source<b id="sourcename"></b>:</div>
-      <pre id="inp" style="width: 95%; height: 300px; overflow: auto;"></pre>
-    </div>
-    </section>
+  </div>
+  <div class="resulting">
+    <div style="">Resulting source<b id="targetname"></b>:</div>
+    <pre id="out"></pre>
+  </div>
+  <div class="original-source">
+    <div style="">Original source<b id="sourcename"></b>:</div>
+    <pre id="inp" style="width: 95%; height: 300px; overflow: auto;"></pre>
+  </div>
+</section>
 
-    <script>
-      var app = {
-        dom: {
-          segmentIn: document.getElementById('segment'),
-          segmentOut: document.getElementById('segout'),
-          source: document.getElementById('inp'),
-          target: document.getElementById('out'),
-          map: document.getElementById('map'),
-          select: document.getElementById('sourceselect'),
-          sourcename: document.getElementById('sourcename'),
-          targetname: document.getElementById('targetname'),
-        },
-
-        sourcemap: '',
-        cache: null,
-        sourceMeta: null,
-        realOutput: '',
-        files: [],
-        filenames: [],
-
-        fileColors: ['black', 'green', 'blue', 'purple', ],
-
-        /**
-         * Init
-         */
-        run: function(){
-          app.createDropdown();
-          app.registerAll();
-          app.dom.select.onchange();
-        },
-
-        /**
-         * The dropdown contains the examples to load
-         */
-        createDropdown: function(){
-          app.dom.select.onchange = function(){
-            var file = 'examples/'+app.dom.select.children[app.dom.select.selectedIndex].value;
-            app.get(file, function(str){
-              app.dom.map.value = str;
-              app.dom.map.onkeyup();
-            });
-          };
-        },
-        /**
-         * Wire up the UI
-         */
-        registerAll: function(){
-          app.registerSegmentEvents();
-          app.registerMapEvents();
-          app.registerOutputEvents();
-        },
-        /**
-         * The top segment input allows you to translate one segment (only shows delta's, not totals)
-         */
-        registerSegmentEvents: function(){
-          app.dom.segmentIn.onkeyup = function(e){
-            var data = app.decodeSegment(app.dom.segmentIn.value);
-            app.dom.segmentOut.innerHTML =
-              data+' :: ' +
-                '\u0394 target col: '+data[0]+', ' +
-                '\u0394 file index: '+data[1]+', ' +
-                '\u0394 source col: '+data[2]+', ' +
-                '\u0394 source line: '+data[3]+', ' +
-                '\u0394 name index: '+data[4];
-          };
-        },
-        /**
-         * The sourcemap textarea. Will try to process the sourcemap as you type. Loads
-         * any found sources through ajax. Parses the mappings.
-         */
-        registerMapEvents: function(){
-          app.dom.map.onkeyup = function(){
-            var json = JSON.parse(app.dom.map.value);
-            if (!json) return;
-
-            app.filenames = json.sources;
-            app.sourcemap = json.mappings;
-
-            app.dom.targetname.innerHTML = ' ('+json.file+')';
-            app.get(json.file, app.showTargetFile);
-
-            app.dom.source.value = '';
-            app.files = [];
-            json.sources.forEach(function(source, i){
-              app.get(source, function(str){
-                // files can arrive in any order, but we dont really care about that.
-                // last one stays on screen until user clicks on a segment in the source.
-                app.files[i] = str;
-                app.dom.sourcename.innerHTML = ' ('+source+')';
-                app.dom.source.innerHTML = str.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'\n\n';
-              });
-            });
-
-            app.cacheMap();
-
-            app.sourceMeta = [];
-          };
-        },
-        /**
-         * Registers a delegate to listen for clicks on "segments".
-         * When you click on one, the proper file is loaded and
-         * the first character of that range is highlighted, after
-         * which the ui jumps to that element.
-         * Might not be super efficient, but it doesn't need to be.
-         */
-        registerOutputEvents: function(){
-          app.dom.target.onclick = function(e){
-            if (e.target.className.substring(0,7) == 'segment') {
-              var data = e.target.getAttribute('data-source');
-              var _ = data.split(',');
-              var file = parseInt(_[0],10);
-              var col = parseInt(_[1],10);
-              var row = parseInt(_[2],10);
-
-              var lines = app.files[file].split('\n');
-              var sourceLines = app.files[file].replace(/&/g,'&amp;').replace(/</g,'&lt;').split('\n');
-
-              var line = lines[row];
-              sourceLines[row] =
-                line.slice(0, col).replace(/&/g,'&amp;').replace(/</g,'&lt;')+
-                '<span style="background-color:red; color:white;">'+
-                line.slice(col,col+1).replace(/&/g,'&amp;').replace(/</g,'&lt;')+
-                '</span>'+
-                line.slice(col+1).replace(/&/g,'&amp;').replace(/</g,'&lt;');
-
-              app.dom.source.innerHTML = sourceLines.join('\n');
-              app.dom.source.querySelector('span').scrollIntoView();
-
-              app.dom.sourcename.innerHTML = ' ('+app.filenames[file]+')';
-            }
-          };
-        },
-
-        /**
-         * Compute the absolute positions of each segment. This eases the lookup times
-         * at runtime because all segments are relative. That means in order to know the
-         * position of the very last segment, you need to run through all the previous
-         * segments first.
-         * (While this could be delegated to run on-demand, and only up to the point where
-         * you need it, I chose not to do that for simplicity.)
-         *
-         * The data is cached and when the generated source UI is built, the absolute
-         * values are set as an attribute. After that, the cache is no longer used as
-         * it will immediately use just that absolute file/col/row value and act accordingly.
-         */
-        cacheMap: function(){
-          var cache = app.cache = [];
-          var tcol = 0;
-          var trow = 0;
-          var scol = 0;
-          var srow = 0;
-          var file = 0;
-          app.sourcemap.split(';').forEach(function(line,i){
-            tcol = 0;
-            line.split(',').forEach(function(str){
-              var segment = app.decodeSegment(str);
-              // 0: target col delta, 1: file index, 2: source row delta, 3: source col delta, 4: name index, 5: chunk string
-              cache.push({
-                segment: segment,
-
-                tcol: tcol+=segment[0]|0,
-                trow: i,
-
-                scol: scol+=segment[3]|0,
-                srow: srow+=segment[2]|0,
-
-                file: file+=segment[1]|0,
-              });
-            });
+<script>
+  var app = {
+    dom: {
+      segmentIn: document.getElementById('segment'),
+      position: document.getElementById('position'),
+      segmentOut: document.getElementById('segout'),
+      source: document.getElementById('inp'),
+      target: document.getElementById('out'),
+      map: document.getElementById('map'),
+      select: document.getElementById('sourceselect'),
+      sourcename: document.getElementById('sourcename'),
+      targetname: document.getElementById('targetname'),
+    },
+    sourcemap: '',
+    cache: null,
+    sourceMeta: null,
+    realOutput: '',
+    files: [],
+    filenames: [],
+    fileColors: ['black', 'blue','pink','orange', 'purple', ],
+    /**
+     * Init
+     */
+    run: function(){
+      app.createDropdown();
+      app.registerAll();
+      app.dom.select.onchange();
+    },
+    /**
+     * The dropdown contains the examples to load
+     */
+    createDropdown: function(){
+      app.dom.select.onchange = function(){
+        var mapBasePath = app.dom.select.children[app.dom.select.selectedIndex].value;
+        if(mapBasePath !== '') {
+          var file = '../../' + mapBasePath;
+          var fileSplit = file.split('/');
+          fileSplit[fileSplit.length - 1] = '';
+          var path = fileSplit.join('/');
+          app.get(file, function(str) {
+            app.dom.map.value = str;
+            app.dom.map.onkeyup(path);
           });
-        },
-        /**
-         * Shows the "compiled source", that's the result of processing one or
-         * more source files into that single file. This function will process
-         * the already computed absolute values of each segment, back to front,
-         * and inject span tags to wrap around a single character, for each
-         * segment. We wrap around just one character because frankly, we don't
-         * really know the actual length (a shortcoming of source maps, imo).
-         * The user will then be able to click this span, and a delegate will
-         * load the proper source file and jump to the proper position in that
-         * file.
-         *
-         * @param {string} str The contents of the target file to load (so the actual script)
-         */
-        showTargetFile: function(str){
-          app.realOutput = str;
-
-          var lines = str.split('\n');
-          var output = [];
-
-          var i=0;
-          for (var i=app.cache.length; i--;) {
-            var segment = app.cache[i];
-
-            while (lines.length > segment.trow+1) output.unshift('\n'+lines.pop().replace(/&/g,'&amp;').replace(/</g,'&lt;'));
-
-            var line = lines[segment.trow];
-            var at = segment.tcol;
-
-            if (at+1<line.length) {
-              output.unshift(line.slice(at+1).replace(/&/g,'&amp;').replace(/</g,'&lt;'));
-              lines[segment.trow] = line.slice(0,at+1);
-            }
-
-            output.unshift('</span>');
-            output.unshift(line.slice(at, at+1).replace(/&/g,'&amp;').replace(/</g,'&lt;'));
-            output.unshift('<span ' +
-              'class="segment '+(app.fileColors[segment.file]||'other')+'" ' +
-              'data-source="'+segment.file+","+segment.scol+","+segment.srow+'" ' +
-              'title="'+('file:'+segment.file+' scol:'+segment.scol+' srow:'+segment.srow+' tcol:'+segment.tcol+' trow:'+segment.trow)+'"' +
-            '>');
-
-            lines[segment.trow] = line.slice(0,at);
-          }
-
-          while (lines.length) output.unshift('\n'+lines.pop().replace(/&/g,'&amp;').replace(/</g,'&lt;'));
-
-          app.dom.target.innerHTML = output.join('');
-        },
-
-        /**
-         * Decode given string, which should be a segment in a sourcemap.
-         * A segment consists of one, four, or five Base64 VLQ encoded
-         * numbers, which are all delta's, and which are fields of the
-         * source map.
-         *
-         * Base64 is a simple mapping of 0-63 to: A-Za-z0-9+/
-         *
-         * VLQ is "variable length quantifier" and deemed an efficient way
-         * to encode small numbers.
-         *
-         * This function will return an array with each field that was
-         * encountered. The fields are: [target pos, source file index,
-         * target row, target col, name index]. All fields are delta,
-         * relative to the previous field (first field offsets at zero).
-         *
-         * @param {string} segment
-         * @return {number[]} One, four, or five fields
-         */
-        decodeSegment: function(segment){
-          // decode the VLQ encoded segment. 1, 3, or 4 fields
-          var bytes = this.decodeBase64(segment);
-
-          var fields = [];
-          while (bytes.length) fields.push(app.decodeOneNumberVQL(bytes));
-
-          fields[5] = segment; // debug
-
-          return fields;
-        },
-        /**
-         * Very straightforward base64 decoder.
-         *
-         * @param {string} str
-         * @return {number[]}
-         */
-        decodeBase64: function(str){
-          return str.split('').map(function(b){
-            // each byte is base64 encoded
-            return 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'.indexOf(b);
-          });
-        },
-        /**
-         * Decode one signed number in a VQL. Will remove used items from
-         * the input array.
-         *
-         * @param {number[]} bytes
-         * @return {number}
-         */
-        decodeOneNumberVQL: function(bytes){
-          var num = 0;
-          var n = 0;
-          do {
-            var b = bytes.shift();
-            num += (b & 31) << (5*n++);
-          } while (b>>5);
-          var sign = num & 1;
-          num >>= 1;
-          if (sign) num = -num;
-
-          return num;
-        },
-
-        /**
-         * Very simple ajax GET (and still too much cruft ;). Not thoroughly tested.
-         *
-         * @param {string} url
-         * @param {Function} callback
-         */
-        get: function(url, callback){
-          var xhr = new XMLHttpRequest();
-          xhr.onreadystatechange = function(){
-            if (xhr.readyState == 4 || xhr.readyState=='complete') {
-              if (xhr.status == 200) {
-                callback(xhr.responseText);
-              }
-            }
-          };
-          xhr.open('GET', url, true);
-          xhr.send(null);
-        },
+        }
       };
+    },
+    /**
+     * Wire up the UI
+     */
+    registerAll: function(){
+      app.registerSegmentEvents();
+      app.registerPositionEvents();
+      app.registerMapEvents();
+      app.registerOutputEvents();
+    },
+    eventFire : function (el, etype){
+      if (el.fireEvent) {
+        el.fireEvent('on' + etype);
+      } else {
+        var evObj = document.createEvent('Events');
+        evObj.initEvent(etype, true, false);
+        el.dispatchEvent(evObj);
+      }
+    },
+    updateSegment : function updateSegment(segment) {
+      if (null !== segment) {
+        app.dom.segmentOut.innerHTML =
+          '\u0394 target row: ' + segment.trow + ', ' +
+          '\u0394 target col: ' + segment.tcol + ', ' +
+          '\u0394 file index: ' + segment.file + ', ' +
+          '\u0394 source row: ' + segment.srow + ', ' +
+          '\u0394 source col: ' + segment.scol;
+        var currentSegDom = document.getElementById('seg-'+segment.trow+'-'+segment.tcol);
+        //put the last green segment to black
+        var greenSegment = app.dom.target.querySelector('.segment.green');
+        if(greenSegment)greenSegment.className= 'segment black';
+        //set the new selected to green
+        currentSegDom.className = 'segment green';
+        //simulate click on the segment
+        app.eventFire(currentSegDom, 'click');
+        currentSegDom.scrollIntoView();
+      }else{
+        app.dom.segmentOut.innerHTML = 'Bad segment';
+      }
+    },
+    /**
+     * The top segment input allows you to translate one segment (only shows delta's, not totals)
+     */
+    registerSegmentEvents: function(){
+      //app.dom.segmentIn.onkeyup = this.updateSegment;
+    },
+    registerPositionEvents: function(){
+      app.dom.position.onkeyup = function(e){
+        var  data = app.dom.position.value;
+        var _ = data.split(',');
+        var row = parseInt(_[0],10);
+        var col = parseInt(_[1],10);
+        var segment = null;
+        if(!isNaN(row) && !isNaN(col)){
+          for(i=0;i<app.cache.length;i++){
+            var seg = app.cache[i];
+            if(seg.tcol>col && seg.trow>= row){
+              break;
+            }
+            segment = seg;
+          }
+          app.dom.segmentIn.value = segment.segment[5];
+          app.updateSegment(segment);
+        }
+      };
+    },
+    /**
+     * The sourcemap textarea. Will try to process the sourcemap as you type. Loads
+     * any found sources through ajax. Parses the mappings.
+     */
+    registerMapEvents: function(){
+      app.dom.map.onkeyup = function(path){
+        var json = JSON.parse(app.dom.map.value);
+        if (!json) return;
+        app.filenames = json.sources;
+        app.sourcemap = json.mappings;
+        app.dom.targetname.innerHTML = ' ('+json.file+')';
+        app.get(path+json.file, app.showTargetFile);
+        app.dom.source.value = '';
+        app.files = [];
+        json.sources.forEach(function(source, i){
+          app.get(path+source, function(str){
+            // files can arrive in any order, but we dont really care about that.
+            // last one stays on screen until user clicks on a segment in the source.
+            app.files[i] = str;
+            app.dom.sourcename.innerHTML = ' ('+source+')';
+            app.dom.source.innerHTML = str.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'\n\n';
+          });
+        });
+        app.cacheMap();
+        app.sourceMeta = [];
+      };
+    },
+    /**
+     * Registers a delegate to listen for clicks on "segments".
+     * When you click on one, the proper file is loaded and
+     * the first character of that range is highlighted, after
+     * which the ui jumps to that element.
+     * Might not be super efficient, but it doesn't need to be.
+     */
+    registerOutputEvents: function(){
+      app.dom.target.onclick = function(e){
+        if (e.target.className.substring(0,7) == 'segment') {
+          var data = e.target.getAttribute('data-source');
+          var _ = data.split(',');
+          var file = parseInt(_[0],10);
+          var col = parseInt(_[1],10);
+          var row = parseInt(_[2],10);
+          var lines = app.files[file].split('\n');
+          var sourceLines = app.files[file].replace(/&/g,'&amp;').replace(/</g,'&lt;').split('\n');
+          var line = lines[row];
+          sourceLines[row] =
+            line.slice(0, col).replace(/&/g,'&amp;').replace(/</g,'&lt;')+
+            '<span style="background-color:red; color:white;">'+
+            line.slice(col,col+1).replace(/&/g,'&amp;').replace(/</g,'&lt;')+
+            '</span>'+
+            line.slice(col+1).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+          app.dom.source.innerHTML = sourceLines.join('\n');
+          app.dom.source.querySelector('span').scrollIntoView();
+          app.dom.sourcename.innerHTML = ' ('+app.filenames[file]+')';
+        }
+      };
+    },
+    /**
+     * Compute the absolute positions of each segment. This eases the lookup times
+     * at runtime because all segments are relative. That means in order to know the
+     * position of the very last segment, you need to run through all the previous
+     * segments first.
+     * (While this could be delegated to run on-demand, and only up to the point where
+     * you need it, I chose not to do that for simplicity.)
+     *
+     * The data is cached and when the generated source UI is built, the absolute
+     * values are set as an attribute. After that, the cache is no longer used as
+     * it will immediately use just that absolute file/col/row value and act accordingly.
+     */
+    cacheMap: function(){
+      var cache = app.cache = [];
+      var tcol = 0;
+      var trow = 0;
+      var scol = 0;
+      var srow = 0;
+      var file = 0;
+      app.sourcemap.split(';').forEach(function(line,i){
+        tcol = 0;
+        line.split(',').forEach(function(str){
+          var segment = app.decodeSegment(str);
+          // 0: target col delta, 1: file index, 2: source row delta, 3: source col delta, 4: name index, 5: chunk string
+          cache.push({
+            segment: segment,
+            tcol: tcol+=segment[0]|0,
+            trow: i,
+            scol: scol+=segment[3]|0,
+            srow: srow+=segment[2]|0,
+            file: file+=segment[1]|0,
+          });
+        });
+      });
+    },
+    /**
+     * Shows the "compiled source", that's the result of processing one or
+     * more source files into that single file. This function will process
+     * the already computed absolute values of each segment, back to front,
+     * and inject span tags to wrap around a single character, for each
+     * segment. We wrap around just one character because frankly, we don't
+     * really know the actual length (a shortcoming of source maps, imo).
+     * The user will then be able to click this span, and a delegate will
+     * load the proper source file and jump to the proper position in that
+     * file.
+     *
+     * @param {string} str The contents of the target file to load (so the actual script)
+     */
+    showTargetFile: function(str){
+      app.realOutput = str;
+      var lines = str.split('\n');
+      var output = [];
+      var i=0;
+      for (var i=app.cache.length; i--;) {
+        var segment = app.cache[i];
+        while (lines.length > segment.trow+1) output.push('\n'+lines.pop());
+        var line = lines[segment.trow];
+        var at = segment.tcol;
+        if (at+1<line.length) {
+          output.push(line.slice(at+1));
+          lines[segment.trow] = line.slice(0,at+1);
+        }
+        //use '###' temporarily in order to not replace it with the final html code replacement
+        output.push('###/span>');
+        output.push(line.slice(at, at+1));
 
-      app.run();
-    </script>
-  </body>
+        output.push(createSpanStartString(segment));
+
+        lines[segment.trow] = line.slice(0,at);
+      }
+      while (lines.length) output.push('\n'+lines.pop());
+      app.dom.target.innerHTML = reverseJoin(output);
+
+      /**
+       * Creates the span used for the segment rollover
+       **/
+      function createSpanStartString(segment){
+        var jj = 0;
+        var tmp = [];
+        tmp[jj++]= '###span id="seg-';
+        tmp[jj++]=segment.trow+'-'+segment.tcol;
+        tmp[jj++]= '" class="segment ';
+        tmp[jj++]=(app.fileColors[segment.file]||'other');
+        tmp[jj++]='" data-source="';
+        tmp[jj++]=segment.file;
+        tmp[jj++]=",";
+        tmp[jj++]=segment.scol;
+        tmp[jj++]=",";
+        tmp[jj++]=segment.srow;
+        tmp[jj++]='" title="file:';
+        tmp[jj++]=segment.file;
+        tmp[jj++]=' scol:';
+        tmp[jj++]=segment.scol;
+        tmp[jj++]=' srow:';
+        tmp[jj++]=segment.srow;
+        tmp[jj++]=' tcol:';
+        tmp[jj++]=segment.tcol;
+        tmp[jj++]=' trow:'+segment.trow;
+        tmp[jj++]='">';
+        return tmp.join('');
+      }
+      /**
+       * Reverse, the array, join it into a string and then replace '&' and '<' by html codes
+       * @param array
+       * @returns {string}
+       */
+      function reverseJoin(array){
+        return array.reverse().join('').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/###/g,'<');
+      }
+    },
+    /**
+     * Decode given string, which should be a segment in a sourcemap.
+     * A segment consists of one, four, or five Base64 VLQ encoded
+     * numbers, which are all delta's, and which are fields of the
+     * source map.
+     *
+     * Base64 is a simple mapping of 0-63 to: A-Za-z0-9+/
+     *
+     * VLQ is "variable length quantifier" and deemed an efficient way
+     * to encode small numbers.
+     *
+     * This function will return an array with each field that was
+     * encountered. The fields are: [target pos, source file index,
+     * target row, target col, name index]. All fields are delta,
+     * relative to the previous field (first field offsets at zero).
+     *
+     * @param {string} segment
+     * @return {number[]} One, four, or five fields
+     */
+    decodeSegment: function(segment){
+      // decode the VLQ encoded segment. 1, 3, or 4 fields
+      var bytes = this.decodeBase64(segment);
+      var fields = [];
+      while (bytes.length) fields.push(app.decodeOneNumberVQL(bytes));
+      fields[5] = segment; // debug
+      return fields;
+    },
+    /**
+     * Very straightforward base64 decoder.
+     *
+     * @param {string} str
+     * @return {number[]}
+     */
+    decodeBase64: function(str){
+      return str.split('').map(function(b){
+        // each byte is base64 encoded
+        return 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'.indexOf(b);
+      });
+    },
+    /**
+     * Decode one signed number in a VQL. Will remove used items from
+     * the input array.
+     *
+     * @param {number[]} bytes
+     * @return {number}
+     */
+    decodeOneNumberVQL: function(bytes){
+      var num = 0;
+      var n = 0;
+      do {
+        var b = bytes.shift();
+        num += (b & 31) << (5*n++);
+      } while (b>>5);
+      var sign = num & 1;
+      num >>= 1;
+      if (sign) num = -num;
+      return num;
+    },
+    /**
+     * Very simple ajax GET (and still too much cruft ;). Not thoroughly tested.
+     *
+     * @param {string} url
+     * @param {Function} callback
+     */
+    get: function(url, callback){
+      var xhr = new XMLHttpRequest();
+      xhr.onreadystatechange = function(){
+        if (xhr.readyState == 4 || xhr.readyState=='complete') {
+          if (xhr.status == 200) {
+            callback(xhr.responseText);
+          }
+        }
+      };
+      xhr.open('GET', url, true);
+      xhr.send(null);
+    },
+  };
+  app.run();
+</script>
+</body>
 </html>
