@@ -7,57 +7,61 @@
       .segment:hover { border-color:yellow; }
       .segment.black { background-color:black; }
       .segment.green { background-color:green; }
+      .segment.pink { background-color:pink; }
+      .segment.orange { background-color:orange; }
       .segment.blue { background-color:blue; }
       .segment.purple { background-color:purple; }
       .segment.other { background-color: #959622; }
       .resulting { float:left; width: 35%; border-right: 1px solid #ADADAD; padding-right: 14px;}
       .original-source { float:left; width: 35%; padding-left: 11px; }
-      .resulting #out { width: 95%; height: 300px; overflow: auto; } 
+      .resulting #out { width: 95%; height: 300px; overflow: auto; }
       .app {padding-top: 40px;border: rgba(176, 209, 228, 0.25) solid 1px;overflow: hidden;margin: 40px -12px 0px -12px;padding: 13px 13px 0px 15px;background: rgba(183, 214, 231, 0.05);border-radius: 2px;}
     </style>
     <link href="bootstrap.css" rel="stylesheet">
   </head>
   <body>
     <section class="container">
-      <h1>Source map visualizer tool</h1>
-        <p>(c) <a href="http://qfox.nl">qfox.nl</a>, jan 2013</p>
-        <p>Copy a source map (v3, make sure file paths are relative, and ajax GET-able from this page) in the textarea to the right, or select an example
-          from the dropdown. Once processed (longer files take more time.., blame rendering), any map segment will show up in the compiled file. You
-          can click on a segment to have the proper file loaded (multiple files supported) and jump to the proper position in that file. First
-          character will be marked red. You can also enter a single VLQ in the segment test to see how it would be decoded (only deltas, no absolute
-          values, of course). Hope the tool helps you :) You can drop this index.html into any project to test your source maps. This tool does not
-          support the names array. It just ignores it, sorry :) You can read more about generating source maps in <a href="http://qfox.nl/weblog/281">this blog post</a>.
+      <h1>Source map visualizer tool (BETTER PERFORMANCE ON INTERNET EXPLORER</h1>
+      <p>(c) <a href="http://qfox.nl">qfox.nl</a>, jan 2013</p>
+      <p>Copy a source map (v3, make sure file paths are relative, and ajax GET-able from this page) in the textarea to the right, or select an example
+        from the dropdown. Once processed (longer files take more time.., blame rendering), any map segment will show up in the compiled file. You
+        can click on a segment to have the proper file loaded (multiple files supported) and jump to the proper position in that file. First
+        character will be marked red. You can also enter a single VLQ in the segment test to see how it would be decoded (only deltas, no absolute
+        values, of course). Hope the tool helps you :) You can drop this index.html into any project to test your source maps. This tool does not
+        support the names array. It just ignores it, sorry :) You can read more about generating source maps in <a href="http://qfox.nl/weblog/281">this blog post</a>.
         You can also find <a href="http://github.com/qfox/sourcemapper">this project on Github</a> for your forking pleasure.</p>
     </section>
     <section class="app" style="margin: 40px 10px 0px 10px;">
-    <div>Segment test: <input id="segment"/><span id="segout"></span></div>
-    <div style="float:right; width: 25%;">
-      Source map examples:
-      <select id="sourceselect">
-        <option value="twoliner.js.map">simple twoliner</option>
-        <option value="longhtml.js.map">longer html demo</option>
-        <option value="sourcemapapp.js.map">source map app</option>
-      </select>
-      <br/>
-
-      <br/>
-      <textarea id="map" style="width: 95%; height: 300px;">
-      </textarea>
-    </div>
-    <div class="resulting">
-      <div style="">Resulting source<b id="targetname"></b>:</div>
-      <pre id="out"></pre>
-    </div>
-    <div class="original-source">
-      <div style="">Original source<b id="sourcename"></b>:</div>
-      <pre id="inp" style="width: 95%; height: 300px; overflow: auto;"></pre>
-    </div>
+      <div>Minified position (format : [row],[column], ex.: 1,105): <input id="position"/></div>
+      <div>Segment (name is not unique): <input id="segment" disabled/><span id="segout"></span></div>
+      <div style="float:right; width: 25%;">
+        Source map examples:
+        <select id="sourceselect">
+          <option value="twoliner.js.map">simple twoliner</option>
+          <option value="longhtml.js.map">longer html demo</option>
+          <option value="sourcemapapp.js.map">source map app</option>
+        </select>
+        <br/>
+    
+        <br/>
+          <textarea id="map" style="width: 95%; height: 300px;">
+          </textarea>
+      </div>
+      <div class="resulting">
+        <div style="">Resulting source<b id="targetname"></b>:</div>
+        <pre id="out"></pre>
+      </div>
+      <div class="original-source">
+        <div style="">Original source<b id="sourcename"></b>:</div>
+        <pre id="inp" style="width: 95%; height: 300px; overflow: auto;"></pre>
+      </div>
     </section>
-
+    
     <script>
       var app = {
         dom: {
           segmentIn: document.getElementById('segment'),
+          position: document.getElementById('position'),
           segmentOut: document.getElementById('segout'),
           source: document.getElementById('inp'),
           target: document.getElementById('out'),
@@ -66,16 +70,13 @@
           sourcename: document.getElementById('sourcename'),
           targetname: document.getElementById('targetname'),
         },
-
         sourcemap: '',
         cache: null,
         sourceMeta: null,
         realOutput: '',
         files: [],
         filenames: [],
-
-        fileColors: ['black', 'green', 'blue', 'purple', ],
-
+        fileColors: ['black', 'blue','pink','orange', 'purple', ],
         /**
          * Init
          */
@@ -84,17 +85,22 @@
           app.registerAll();
           app.dom.select.onchange();
         },
-
         /**
          * The dropdown contains the examples to load
          */
         createDropdown: function(){
           app.dom.select.onchange = function(){
-            var file = 'examples/'+app.dom.select.children[app.dom.select.selectedIndex].value;
-            app.get(file, function(str){
-              app.dom.map.value = str;
-              app.dom.map.onkeyup();
-            });
+            var mapBasePath = app.dom.select.children[app.dom.select.selectedIndex].value;
+            if(mapBasePath !== '') {
+              var file = '../../' + mapBasePath;
+              var fileSplit = file.split('/');
+              fileSplit[fileSplit.length - 1] = '';
+              var path = fileSplit.join('/');
+              app.get(file, function(str) {
+                app.dom.map.value = str;
+                app.dom.map.onkeyup(path);
+              });
+            }
           };
         },
         /**
@@ -102,22 +108,64 @@
          */
         registerAll: function(){
           app.registerSegmentEvents();
+          app.registerPositionEvents();
           app.registerMapEvents();
           app.registerOutputEvents();
+        },
+        eventFire : function (el, etype){
+          if (el.fireEvent) {
+            el.fireEvent('on' + etype);
+          } else {
+            var evObj = document.createEvent('Events');
+            evObj.initEvent(etype, true, false);
+            el.dispatchEvent(evObj);
+          }
+        },
+        updateSegment : function updateSegment(segment) {
+          if (null !== segment) {
+            app.dom.segmentOut.innerHTML =
+              '\u0394 target row: ' + segment.trow + ', ' +
+              '\u0394 target col: ' + segment.tcol + ', ' +
+              '\u0394 file index: ' + segment.file + ', ' +
+              '\u0394 source row: ' + segment.srow + ', ' +
+              '\u0394 source col: ' + segment.scol;
+            var currentSegDom = document.getElementById('seg-'+segment.trow+'-'+segment.tcol);
+            //put the last green segment to black
+            var greenSegment = app.dom.target.querySelector('.segment.green');
+            if(greenSegment)greenSegment.className= 'segment black';
+            //set the new selected to green
+            currentSegDom.className = 'segment green';
+            //simulate click on the segment
+            app.eventFire(currentSegDom, 'click');
+            currentSegDom.scrollIntoView();
+          }else{
+            app.dom.segmentOut.innerHTML = 'Bad segment';
+          }
         },
         /**
          * The top segment input allows you to translate one segment (only shows delta's, not totals)
          */
         registerSegmentEvents: function(){
-          app.dom.segmentIn.onkeyup = function(e){
-            var data = app.decodeSegment(app.dom.segmentIn.value);
-            app.dom.segmentOut.innerHTML =
-              data+' :: ' +
-                '\u0394 target col: '+data[0]+', ' +
-                '\u0394 file index: '+data[1]+', ' +
-                '\u0394 source col: '+data[2]+', ' +
-                '\u0394 source line: '+data[3]+', ' +
-                '\u0394 name index: '+data[4];
+          //app.dom.segmentIn.onkeyup = this.updateSegment;
+        },
+        registerPositionEvents: function(){
+          app.dom.position.onkeyup = function(e){
+            var  data = app.dom.position.value;
+            var _ = data.split(',');
+            var row = parseInt(_[0],10);
+            var col = parseInt(_[1],10);
+            var segment = null;
+            if(!isNaN(row) && !isNaN(col)){
+              for(i=0;i<app.cache.length;i++){
+                var seg = app.cache[i];
+                if(seg.tcol>col && seg.trow>= row){
+                  break;
+                }
+                segment = seg;
+              }
+              app.dom.segmentIn.value = segment.segment[5];
+              app.updateSegment(segment);
+            }
           };
         },
         /**
@@ -125,20 +173,17 @@
          * any found sources through ajax. Parses the mappings.
          */
         registerMapEvents: function(){
-          app.dom.map.onkeyup = function(){
+          app.dom.map.onkeyup = function(path){
             var json = JSON.parse(app.dom.map.value);
             if (!json) return;
-
             app.filenames = json.sources;
             app.sourcemap = json.mappings;
-
             app.dom.targetname.innerHTML = ' ('+json.file+')';
-            app.get(json.file, app.showTargetFile);
-
+            app.get(path+json.file, app.showTargetFile);
             app.dom.source.value = '';
             app.files = [];
             json.sources.forEach(function(source, i){
-              app.get(source, function(str){
+              app.get(path+source, function(str){
                 // files can arrive in any order, but we dont really care about that.
                 // last one stays on screen until user clicks on a segment in the source.
                 app.files[i] = str;
@@ -146,9 +191,7 @@
                 app.dom.source.innerHTML = str.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'\n\n';
               });
             });
-
             app.cacheMap();
-
             app.sourceMeta = [];
           };
         },
@@ -167,10 +210,8 @@
               var file = parseInt(_[0],10);
               var col = parseInt(_[1],10);
               var row = parseInt(_[2],10);
-
               var lines = app.files[file].split('\n');
               var sourceLines = app.files[file].replace(/&/g,'&amp;').replace(/</g,'&lt;').split('\n');
-
               var line = lines[row];
               sourceLines[row] =
                 line.slice(0, col).replace(/&/g,'&amp;').replace(/</g,'&lt;')+
@@ -178,15 +219,12 @@
                 line.slice(col,col+1).replace(/&/g,'&amp;').replace(/</g,'&lt;')+
                 '</span>'+
                 line.slice(col+1).replace(/&/g,'&amp;').replace(/</g,'&lt;');
-
               app.dom.source.innerHTML = sourceLines.join('\n');
               app.dom.source.querySelector('span').scrollIntoView();
-
               app.dom.sourcename.innerHTML = ' ('+app.filenames[file]+')';
             }
           };
         },
-
         /**
          * Compute the absolute positions of each segment. This eases the lookup times
          * at runtime because all segments are relative. That means in order to know the
@@ -213,13 +251,10 @@
               // 0: target col delta, 1: file index, 2: source row delta, 3: source col delta, 4: name index, 5: chunk string
               cache.push({
                 segment: segment,
-
                 tcol: tcol+=segment[0]|0,
                 trow: i,
-
                 scol: scol+=segment[3]|0,
                 srow: srow+=segment[2]|0,
-
                 file: file+=segment[1]|0,
               });
             });
@@ -240,40 +275,66 @@
          */
         showTargetFile: function(str){
           app.realOutput = str;
-
           var lines = str.split('\n');
           var output = [];
-
           var i=0;
           for (var i=app.cache.length; i--;) {
             var segment = app.cache[i];
-
-            while (lines.length > segment.trow+1) output.unshift('\n'+lines.pop().replace(/&/g,'&amp;').replace(/</g,'&lt;'));
-
+            while (lines.length > segment.trow+1) output.push('\n'+lines.pop());
             var line = lines[segment.trow];
             var at = segment.tcol;
-
             if (at+1<line.length) {
-              output.unshift(line.slice(at+1).replace(/&/g,'&amp;').replace(/</g,'&lt;'));
+              output.push(line.slice(at+1));
               lines[segment.trow] = line.slice(0,at+1);
             }
-
-            output.unshift('</span>');
-            output.unshift(line.slice(at, at+1).replace(/&/g,'&amp;').replace(/</g,'&lt;'));
-            output.unshift('<span ' +
-              'class="segment '+(app.fileColors[segment.file]||'other')+'" ' +
-              'data-source="'+segment.file+","+segment.scol+","+segment.srow+'" ' +
-              'title="'+('file:'+segment.file+' scol:'+segment.scol+' srow:'+segment.srow+' tcol:'+segment.tcol+' trow:'+segment.trow)+'"' +
-            '>');
-
+            //use '###' temporarily in order to not replace it with the final html code replacement
+            output.push('###/span>');
+            output.push(line.slice(at, at+1));
+    
+            output.push(createSpanStartString(segment));
+    
             lines[segment.trow] = line.slice(0,at);
           }
-
-          while (lines.length) output.unshift('\n'+lines.pop().replace(/&/g,'&amp;').replace(/</g,'&lt;'));
-
-          app.dom.target.innerHTML = output.join('');
+          while (lines.length) output.push('\n'+lines.pop());
+          app.dom.target.innerHTML = reverseJoin(output);
+    
+          /**
+           * Creates the span used for the segment rollover
+           **/
+          function createSpanStartString(segment){
+            var jj = 0;
+            var tmp = [];
+            tmp[jj++]= '###span id="seg-';
+            tmp[jj++]=segment.trow+'-'+segment.tcol;
+            tmp[jj++]= '" class="segment ';
+            tmp[jj++]=(app.fileColors[segment.file]||'other');
+            tmp[jj++]='" data-source="';
+            tmp[jj++]=segment.file;
+            tmp[jj++]=",";
+            tmp[jj++]=segment.scol;
+            tmp[jj++]=",";
+            tmp[jj++]=segment.srow;
+            tmp[jj++]='" title="file:';
+            tmp[jj++]=segment.file;
+            tmp[jj++]=' scol:';
+            tmp[jj++]=segment.scol;
+            tmp[jj++]=' srow:';
+            tmp[jj++]=segment.srow;
+            tmp[jj++]=' tcol:';
+            tmp[jj++]=segment.tcol;
+            tmp[jj++]=' trow:'+segment.trow;
+            tmp[jj++]='">';
+            return tmp.join('');
+          }
+          /**
+           * Reverse, the array, join it into a string and then replace '&' and '<' by html codes
+           * @param array
+           * @returns {string}
+           */
+          function reverseJoin(array){
+            return array.reverse().join('').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/###/g,'<');
+          }
         },
-
         /**
          * Decode given string, which should be a segment in a sourcemap.
          * A segment consists of one, four, or five Base64 VLQ encoded
@@ -296,12 +357,9 @@
         decodeSegment: function(segment){
           // decode the VLQ encoded segment. 1, 3, or 4 fields
           var bytes = this.decodeBase64(segment);
-
           var fields = [];
           while (bytes.length) fields.push(app.decodeOneNumberVQL(bytes));
-
           fields[5] = segment; // debug
-
           return fields;
         },
         /**
@@ -333,10 +391,8 @@
           var sign = num & 1;
           num >>= 1;
           if (sign) num = -num;
-
           return num;
         },
-
         /**
          * Very simple ajax GET (and still too much cruft ;). Not thoroughly tested.
          *
@@ -356,7 +412,6 @@
           xhr.send(null);
         },
       };
-
       app.run();
     </script>
   </body>
